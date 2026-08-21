@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "soils"
+version = "0.1.0"
+description = "Song Outside-In List Sorter - a looping shuffle that protects the seam between playthroughs"
+readme = "README.md"
+license = { file = "LICENSE" }
+authors = [{ name = "Paul Wade" }]
+requires-python = ">=3.8"
+keywords = ["playlist", "shuffle", "music", "sorting", "algorithm"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Topic :: Multimedia :: Sound/Audio",
+]
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/prw760/SongOutsideInListSorter"
+
+[tool.setuptools]
+py-modules = ["playlist_script"]
