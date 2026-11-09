@@ -8,7 +8,8 @@ on:
 
 jobs:
   unittest:
-    runs-on: ubuntu-latest
+    # Python 3.9 builds are available for 24.04, but not the current ubuntu-latest.
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
