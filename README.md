@@ -1,109 +1,143 @@
 # SOILS — Song Outside-In List Sorter
 
-A looping shuffle that treats the **seam between playthroughs** as the thing worth getting right.
+A Python reference implementation of a looping shuffle that limits how soon a
+song can repeat when one playthrough ends and the next begins.
 
-A plain shuffle deals a fresh random permutation for every loop. Each loop is fair on its own,
-but nothing connects one loop to the next, so a track can close one loop and open the next —
-back to back. That is the single most noticeable failure a shuffle can have, and it is the one
-ordinary shuffles do nothing about.
+**Maintained by [Paul Wade (@prw760)](https://github.com/prw760).**
+MIT licensed · No runtime dependencies · Python 3.8+
 
-SOILS builds each loop **from the outside in**: it places the two outer bands first — the head
-of the new loop and its tail — and only then fills the interior at random.
+[![Tests](https://github.com/prw760/SongOutsideInListSorter/actions/workflows/tests.yml/badge.svg)](https://github.com/prw760/SongOutsideInListSorter/actions/workflows/tests.yml)
 
+## The problem
+
+Independently shuffling a playlist on each loop can put the same song at the end
+of one loop and the beginning of the next. Every song still gets a turn, but a
+listener can hear an immediate repeat.
+
+SOILS carries the previous loop's order forward. It builds the next loop from
+the outside in: choose an opening band from earlier tracks, choose a closing
+band with a preference for later tracks, then shuffle the remaining middle.
+The previous closing band cannot appear in the next opening band.
+
+```text
+Previous loop: [ earlier tracks ............ | closing shield ]
+                    |                              X
+                    v                              | excluded
+Next loop:     [ opening shield | shuffled middle | closing shield ]
 ```
-        previous loop                       new loop
-  ┌──────┬──────────────┬──────┐     ┌──────┬──────────────┬──────┐
-  │ head │    middle    │ tail │ ──▶ │ head │    middle    │ tail │
-  └──────┴──────────────┴──────┘     └──────┴──────────────┴──────┘
-     ▲                      │           ▲                      ▲
-     │                      │           │                      │
-     └──── drawn from ──────────────────┘                      │
-                            └──── drawn from ───────────────────┘
+
+## What it guarantees
+
+For a **fixed playlist of distinct tracks**, played sequentially without edits
+or resets, the distance between consecutive plays of a track is **at least
+`shield_size + 1`**. A distance of 8 means seven other tracks play between them.
+Each track appears exactly once per loop.
+
+For 30 distinct tracks:
+
+| Method | Shield size | Guaranteed repeat distance |
+| --- | ---: | ---: |
+| Independent shuffle each loop | — | At least 1 (immediate repeats possible) |
+| SOILS, `shield_ratio=0.25` | 7 | At least 8 |
+| SOILS, `shield_ratio=0.5` | 15 | At least 16 |
+
+These are lower bounds; an individual run need not reach them. Equal play
+frequency does **not** mean uniformly random ordering. Stronger shields reduce
+mixing; at a 50% shield with an even track count, tracks stay in the same half
+of the playlist across loops. See [the algorithm and proof](ALGORITHM.md).
+
+## Try it
+
+Clone the repository and run the demonstration using Python 3.8 or newer:
+
+```bash
+git clone https://github.com/prw760/SongOutsideInListSorter.git
+cd SongOutsideInListSorter
+python3 demo.py --tracks 30 --loops 400 --shield-ratio 0.25 --seed 1848
 ```
 
-The new loop's **head band** is drawn only from tracks that sat near the *front* of the previous
-loop — the ones heard longest ago. Its **tail band** is drawn from tracks that sat near the
-*back*. The interior is a free shuffle. Because the head band can never reach into the previous
-loop's closing band, the shortest possible gap between two plays of the same track is bounded
-below by construction, not left to luck.
+The demo prints two consecutive loops and compares repeat-distance histograms
+with independent reshuffling. In a local run with these parameters, the
+baseline's shortest repeat distance was 1 and SOILS' was 8. The baseline had
+364 repeat distances of 7 or less; SOILS had zero. These are simulation results,
+not measurements from a music player. Seeded output may vary between Python
+versions.
 
-## The guarantee
-
-With a 30-track list and the default 25% shield (a 7-track band):
-
-| | minimum gap between repeats | mean gap |
-|---|---|---|
-| naive per-loop reshuffle | **1** | 30.0 |
-| SOILS, `shield_ratio=0.25` | **8** | 30.0 |
-| SOILS, `shield_ratio=0.5` | **16** | 30.0 |
-
-The minimum gap is always `shield_size + 1`. Fairness is untouched — every track still plays
-exactly once per loop, so the mean gap stays at the list length.
-
-## Usage
+Use the class directly from the repository:
 
 ```python
+import random
 from playlist_script import SmartPlaylist
 
-playlist = SmartPlaylist(["Song #1", "Song #2", ...], shield_ratio=0.25)
+playlist = SmartPlaylist(
+    [f"Song {number}" for number in range(1, 31)],
+    shield_ratio=0.25,
+    rng=random.Random(1848),
+)
 
-while True:
-    play(playlist.get_next_track())
+for _ in range(60):  # two full playthroughs
+    print(playlist.get_next_track())
 ```
 
-The playlist loops forever. Each loop plays every track exactly once, and each seam honours the
-shield.
+To import it from another project, install this checkout into that project's
+virtual environment with `python3 -m pip install .`. This documentation does
+not assume that a package named `soils` on a package index is this project.
 
-### Editing while it plays
+## API
 
-```python
-playlist.add_track("Surprise New Track")   # joins the loop in progress
-playlist.remove_track("Song #7")           # index shifts back, nothing gets skipped
-```
+| Member | Behavior |
+| --- | --- |
+| `SmartPlaylist(tracks, shield_ratio=0.25, rng=None)` | Create a nonempty playlist; optionally supply `random.Random(seed)`. |
+| `get_next_track()` | Consume the next track; create a new loop when needed. |
+| `peek_next_track()` | Return the next track without consuming it; may create a new loop. |
+| `add_track(track)` | Insert a track into the unplayed part of the current loop. |
+| `remove_track(track)` | Remove the first equal occurrence and adjust the playback index. |
+| `shield_size` | Band size calculated from the current pool size and shield ratio. |
+| `current_order` | A copy of the current loop's order. |
+| `remaining_in_loop` | Number of unconsumed entries in the current loop. |
+| `loop_count` | Number of loops constructed, including the initial loop. |
+| `reset()` | Discard history and start a fresh first loop. |
 
-`add_track` slots the newcomer somewhere in the *unplayed remainder*, so it is heard this loop
-rather than waiting for the next one. `remove_track` adjusts the playback index when the removed
-track had already played, so the following track is not silently swallowed. The shield resizes
-itself to the new pool length automatically.
+`shield_ratio` must satisfy `0 < shield_ratio <= 0.5`. An empty initial playlist
+raises `ValueError`; requesting a track after removing all entries raises
+`RuntimeError`. Use the add/remove methods instead of modifying `master_pool`
+directly.
 
-### API
+## Scope and tradeoffs
 
-| member | description |
-|---|---|
-| `SmartPlaylist(tracks, shield_ratio=0.25, rng=None)` | Build a playlist. Pass `rng=random.Random(seed)` for reproducible orderings. |
-| `get_next_track()` | Next track, rolling into a fresh loop at the seam. |
-| `peek_next_track()` | Same, without consuming it. |
-| `add_track(track)` / `remove_track(track)` | Mutate the pool mid-loop. |
-| `master_pool` | The live list of tracks. |
-| `shield_size` | Current band size, recomputed from the pool length. |
-| `current_order` / `remaining_in_loop` | The running order, and how far to the next seam. |
-| `loop_count` | How many loops have been laid out. |
-| `reset()` | Forget history and start from a fresh first loop. |
+- This is a standalone algorithm and demo, not an audio player or an installed
+  Spotify or Quod Libet integration.
+- The repeat-distance guarantee assumes distinct tracks under Python equality.
+  Duplicate entries can represent the same song and defeat a song-level bound.
+- Mid-loop add/remove operations preserve playback position as documented, but
+  the fixed-playlist guarantee does not cover edits, resets, manual jumps, or
+  actual listening when returned tracks are skipped.
+- The first loop is an ordinary shuffle. There is no persistent listening
+  history between program runs.
+- The current list-based implementation uses quadratic work to build a loop
+  and linear storage. Large-library integration needs performance measurements.
 
-### `shield_ratio`
-
-Must satisfy `0 < shield_ratio <= 0.5`. Both ends are rejected loudly with a `ValueError`:
-a shield of `0` removes the guarantee the algorithm exists to provide, and a shield above half
-the list leaves nothing to fill the loop with. Past `0.25` the front and back regions begin to
-overlap and the tail band tops itself up from the wider remainder — the head-band guarantee is
-structural and holds regardless.
-
-## Tests
+## Validation and contributions
 
 ```bash
-python test_playlist.py                 # 30-track sample list (default)
-python test_playlist.py --tracks 100    # override the sample size
-SOILS_TEST_TRACKS=100 python -m unittest test_playlist
+python3 test_playlist.py
+python3 test_playlist.py --tracks 250
+python3 test_playlist.py --tracks 8
 ```
 
-The suite covers the core safety tenet at a single seam and across 50 consecutive seams, the
-stronger whole-band property, per-loop fairness, mid-loop insertion and deletion, shield-ratio
-validation, and reproducibility under a seeded RNG.
+The 19-test suite covers protected loop boundaries, once-per-loop coverage,
+mid-loop edits, input validation, and seeded reproducibility. GitHub Actions
+runs these commands on Python 3.9, 3.11, and 3.13.
 
-```bash
-python demo.py            # see the ordering, and the gap histogram vs naive shuffle
-```
+See [CONTRIBUTING.md](CONTRIBUTING.md) for reproducible bug reports and proposed
+changes. Useful next steps include player integration, measuring performance
+on larger playlists, and defining history behavior for skips and edits.
 
-## License
+## Credits and license
 
-MIT — see [LICENSE](LICENSE).
+Project maintained by Paul Wade. Development has used AI assistance: the
+initial implementation records Claude as a coauthor, and Codex assisted with
+the documentation and publication preparation. The code, tests, and stated
+limitations are available for independent review.
+
+[MIT License](LICENSE), copyright 2026 Paul Wade.
