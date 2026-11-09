@@ -133,6 +133,11 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for reproducible bug reports and proposed
 changes. Useful next steps include player integration, measuring performance
 on larger playlists, and defining history behavior for skips and edits.
 
+An optional Quod Libet integration has been proposed in
+[quodlibet/quodlibet#4970](https://github.com/quodlibet/quodlibet/issues/4970).
+It is a request for maintainer feedback; no integration PR has been submitted
+or accepted.
+
 ## Credits and license
 
 Project maintained by Paul Wade. Development has used AI assistance: the
