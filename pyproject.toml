@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Song Outside-In List Sorter - a looping shuffle that protects the seam between playthroughs"
 readme = "README.md"
 license = { file = "LICENSE" }
-authors = [{ name = "Paul Wade" }]
+authors = [{ name = "Paul R. Wade" }]
 requires-python = ">=3.8"
 keywords = ["playlist", "shuffle", "music", "sorting", "algorithm"]
 classifiers = [

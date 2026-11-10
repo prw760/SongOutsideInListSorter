@@ -3,7 +3,7 @@
 A Python reference implementation of a looping shuffle that limits how soon a
 song can repeat when one playthrough ends and the next begins.
 
-**Maintained by [Paul Wade (@prw760)](https://github.com/prw760).**
+**Maintained by [Paul R. Wade (@prw760)](https://github.com/prw760).**
 MIT licensed · No runtime dependencies · Python 3.8+
 
 [![Tests](https://github.com/prw760/SongOutsideInListSorter/actions/workflows/tests.yml/badge.svg)](https://github.com/prw760/SongOutsideInListSorter/actions/workflows/tests.yml)
@@ -140,9 +140,9 @@ or accepted.
 
 ## Credits and license
 
-Project maintained by Paul Wade. Development has used AI assistance: the
+Project maintained by Paul R. Wade. Development has used AI assistance: the
 initial implementation records Claude as a coauthor, and Codex assisted with
 the documentation and publication preparation. The code, tests, and stated
 limitations are available for independent review.
 
-[MIT License](LICENSE), copyright 2026 Paul Wade.
+[MIT License](LICENSE), copyright 2026 Paul R. Wade.
